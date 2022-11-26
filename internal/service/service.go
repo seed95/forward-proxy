@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/seed95/forward-proxy/api"
 	"github.com/seed95/forward-proxy/internal/model"
 	"github.com/seed95/forward-proxy/internal/repo"
 	"github.com/seed95/forward-proxy/pkg/log"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
-	"io/ioutil"
-	"net/http"
-	"time"
 )
 
 type Service interface {
@@ -67,7 +68,7 @@ func (s *service) ForwardRequest(ctx context.Context, req *api.ForwardRequest) (
 		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(proxyRes.Body)
+	body, err := io.ReadAll(proxyRes.Body)
 	if err != nil {
 		return nil, err
 	}
