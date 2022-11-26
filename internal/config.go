@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	DefaultStdLogLevel     = 1
+	DefaultStdLogLevel     = -1
 	DefaultRedisExpiration = 5 * time.Minute
 )
 
@@ -24,8 +24,7 @@ type PostgresConfig struct {
 }
 
 type Config struct {
-	StdLogLevel int    // Standard core log level
-	ProxyPort   string // Proxy port is used to receive requests from this port to forward.
+	ProxyPort string // Proxy port is used to receive requests from this port to forward.
 	RedisConfig
 	PostgresConfig
 }

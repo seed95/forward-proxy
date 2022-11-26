@@ -1,9 +1,7 @@
 package api
 
-import "time"
-
 type StatsRequest struct {
-	From time.Duration // Number of minutes in the past from current time
+	From string // Number of minutes in the past from current time
 }
 
 type StatsResponse struct {
@@ -16,6 +14,4 @@ type ForwardingStats struct {
 	FailCount    int `json:"fail_count"`
 }
 
-type MaxDurations struct {
-	UrlDuration map[string]int
-}
+type MaxDurations map[string]int64

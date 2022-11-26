@@ -8,12 +8,13 @@ import (
 
 type ForwardRequest struct {
 	ReceivedAt time.Time
-	Target     string // Target url
+	TargetUrl  string
 	Method     string
 	Body       io.Reader
 	Header     http.Header
 }
 
 type ForwardResponse struct {
-	TargetResponse *http.Response
+	StatusCode int
+	Body       []byte
 }

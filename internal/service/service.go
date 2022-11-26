@@ -8,6 +8,7 @@ import (
 	"github.com/seed95/forward-proxy/internal/repo"
 	"github.com/seed95/forward-proxy/pkg/log"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -17,7 +18,7 @@ type Service interface {
 	ForwardRequest(ctx context.Context, req *api.ForwardRequest) (res *api.ForwardResponse, err error)
 
 	// GetStats returns statistical information for received requests.
-	GetStats(ctx context.Context, req *api.StatsRequest) (res *api.StatsResponse)
+	GetStats(ctx context.Context, req *api.StatsRequest) (res *api.StatsResponse, err error)
 }
 
 type service struct {
@@ -41,82 +42,109 @@ func (s *service) ForwardRequest(ctx context.Context, req *api.ForwardRequest) (
 	defer func(startTime time.Time) {
 		commonKeyVal := []keyval.Pair{
 			keyval.String("req", fmt.Sprintf("%+v", req)),
-			keyval.String("res", fmt.Sprintf("%+v", res)),
+			keyval.String("res_status_code", fmt.Sprintf("%v", res.StatusCode)),
 		}
 		log.ReqRes(startTime, err, commonKeyVal...)
 	}(time.Now())
 
-	// TODO check this segment
-	cacheResp, err := s.cache.GetCachedRequest(ctx, req.Target)
-	if err != nil {
+	//if cacheRes := s.cache.GetCachedRequest(ctx, req.TargetUrl); cacheRes != nil {
+	//	return &api.ForwardResponse{
+	//		StatusCode: http.StatusOK,
+	//		Body:       cacheRes,
+	//	}, nil
+	//}
 
-	}
-	_ = cacheResp
-
-	proxyReq, err := http.NewRequest(req.Method, req.Target, req.Body)
+	proxyReq, err := http.NewRequest(req.Method, req.TargetUrl, req.Body)
 	if err != nil {
-		// TODO handle error
 		return nil, err
 	}
 	proxyReq.Header = req.Header
 
 	proxyRes, err := s.client.Do(proxyReq)
 	if err != nil {
-		// TODO handle error
-		//http.Error(w, err.Error(), http.StatusBadGateway)
 		return nil, err
 	}
 
+	body, err := ioutil.ReadAll(proxyRes.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save statistical and cache response
 	if req.Method == http.MethodGet {
+		// Save statistical information in database
 		stat := model.Statistical{
-			Url:                  req.Target,
+			Url:                  req.TargetUrl,
 			StatusCode:           proxyRes.StatusCode,
 			DurationResponseTime: time.Since(req.ReceivedAt).Milliseconds(),
 			ReceivedAt:           req.ReceivedAt.UnixMilli(),
 		}
 		go func(stat model.Statistical) {
 			if err := s.statsRepo.SaveStat(context.TODO(), stat); err != nil {
-				// TODO log error
 				log.Error("save stat", keyval.Error(err))
 			}
 		}(stat)
-	}
 
-	if req.Method == http.MethodGet && proxyRes.StatusCode == http.StatusOK {
-		go func() {
-			if err := s.cache.CacheResponse(context.TODO(), req.Target, proxyRes); err != nil {
-				// TODO log error
-			}
-		}()
+		// Cache response if status code is http.StatusOK
+		if proxyRes.StatusCode == http.StatusOK {
+			go func(targetUrl string, body []byte) {
+				if err := s.cache.CacheResponse(context.TODO(), targetUrl, body); err != nil {
+					log.Error("cache response", keyval.Error(err))
+				}
+			}(req.TargetUrl, body)
+		}
 	}
 
 	res = &api.ForwardResponse{
-		TargetResponse: proxyRes,
+		StatusCode: proxyRes.StatusCode,
+		Body:       body,
 	}
 
 	return res, nil
 }
 
-func (s *service) GetStats(ctx context.Context, req *api.StatsRequest) (res *api.StatsResponse) {
+func (s *service) GetStats(ctx context.Context, req *api.StatsRequest) (res *api.StatsResponse, err error) {
 	// Log request response
 	defer func(startTime time.Time) {
 		commonKeyVal := []keyval.Pair{
 			keyval.String("req", fmt.Sprintf("%+v", req)),
 			keyval.String("res", fmt.Sprintf("%+v", res)),
 		}
-		// TODO check error
-		log.ReqRes(startTime, nil, commonKeyVal...)
+		log.ReqRes(startTime, err, commonKeyVal...)
 	}(time.Now())
 
-	duration := time.Now().UnixMilli() - req.From.Milliseconds()
+	// Convert string from to duration
+	from, err := time.ParseDuration(req.From + "m")
+	duration := time.Now().UnixMilli() - from.Milliseconds()
+
+	// Get stats
 	stats, err := s.statsRepo.GetStats(ctx, duration)
 	if err != nil {
-		// TODO handle error
+		return nil, err
 	}
 
-	_ = stats
-	// Make response
-	res = &api.StatsResponse{}
+	nSuccess := 0
+	nFailed := 0
+	durations := api.MaxDurations{}
+	for _, stat := range stats {
+		if stat.StatusCode == http.StatusOK {
+			nSuccess++
+		} else {
+			nFailed++
+		}
 
-	return res
+		if durations[stat.Url] < stat.DurationResponseTime {
+			durations[stat.Url] = stat.DurationResponseTime
+		}
+	}
+
+	// Make response
+	res = &api.StatsResponse{
+		ForwardingStats: api.ForwardingStats{
+			SuccessCount: nSuccess,
+			FailCount:    nFailed,
+		},
+		MaxDurations: durations,
+	}
+	return res, nil
 }

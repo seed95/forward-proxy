@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/seed95/forward-proxy/internal"
 	"github.com/seed95/forward-proxy/internal/handler"
+	"github.com/seed95/forward-proxy/internal/helper"
 	"github.com/seed95/forward-proxy/internal/repo/cache"
 	"github.com/seed95/forward-proxy/internal/repo/statistical"
 	"github.com/seed95/forward-proxy/internal/service"
@@ -29,20 +30,24 @@ var (
 )
 
 func init() {
-	conf.StdLogLevel = internal.DefaultStdLogLevel
 	conf.ExpirationTime = internal.DefaultRedisExpiration
-	conf.PostgresConfig = internal.PostgresConfig{
-		Address:      "localhost",
-		Port:         "15432",
-		Username:     "postgres",
-		Password:     "pass",
-		DatabaseName: "postgres",
-	}
+	log.Init(internal.DefaultStdLogLevel)
 
 	rootCmd.Flags().StringVar(&conf.ProxyPort, "proxy-port", "", "Proxy port is used to received request from this port")
+	rootCmd.Flags().StringVar(&conf.RedisConfig.Address, "redis-address", "", "Redis address.")
+	rootCmd.Flags().StringVar(&conf.PostgresConfig.Address, "postgres-address", "", "Postgres address.")
+	rootCmd.Flags().StringVar(&conf.PostgresConfig.Port, "postgres-port", "", "Postgres port.")
+	rootCmd.Flags().StringVar(&conf.PostgresConfig.Username, "postgres-username", "", "Postgres username.")
+	rootCmd.Flags().StringVar(&conf.PostgresConfig.Password, "postgres-password", "", "Postgres password.")
+	rootCmd.Flags().StringVar(&conf.PostgresConfig.DatabaseName, "postgres-dbname", "", "Postgres database name.")
+
 	_ = rootCmd.MarkFlagRequired("proxy-port")
-	fmt.Println("proxy port", conf.ProxyPort)
-	rootCmd.Flags().StringVar(&conf.RedisConfig.Address, "redis", "localhost", "Proxy port is used to received request from this port. Default is 2121")
+	_ = rootCmd.MarkFlagRequired("redis-address")
+	_ = rootCmd.MarkFlagRequired("postgres-address")
+	_ = rootCmd.MarkFlagRequired("postgres-port")
+	_ = rootCmd.MarkFlagRequired("postgres-username")
+	_ = rootCmd.MarkFlagRequired("postgres-password")
+	_ = rootCmd.MarkFlagRequired("postgres-dbname")
 }
 
 func Execute() error {
@@ -50,16 +55,29 @@ func Execute() error {
 }
 
 func run(cmd *cobra.Command, args []string) {
+	fmt.Println("proxy port", conf.ProxyPort)
+	fmt.Println("redis config", conf.RedisConfig)
+	fmt.Println("postgres config", conf.PostgresConfig)
+
+	// Setup redis database
+	rdb, err := helper.NewRedisDatabase(conf.RedisConfig)
+	if err != nil {
+		log.Panic("redis connection", keyval.Error(err))
+	}
+
+	// Setup postgres gorm database
+	db, err := helper.NewPostgresGormDB(conf.PostgresConfig)
+	if err != nil {
+		log.Panic("postgres connection", keyval.Error(err))
+	}
+
 	// Setup cache repo
-	cacheRepo := cache.New(&conf.RedisConfig)
+	cacheRepo := cache.New(rdb, conf.ExpirationTime)
 
 	// Setup statistical repo
-	statsRepo := statistical.New(&conf.PostgresConfig)
-	//if err != nil {
-	//	// TODO handle error
-	//	fmt.Println("service error", err)
-	//}
+	statsRepo := statistical.New(db)
 
+	// Setup service
 	srv := service.New(cacheRepo, statsRepo)
 
 	// Setup HTTP server
@@ -72,5 +90,4 @@ func run(cmd *cobra.Command, args []string) {
 	killSig := make(chan os.Signal, 1)
 	signal.Notify(killSig, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
 	<-killSig
-	fmt.Println("sajad")
 }

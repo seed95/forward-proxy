@@ -4,7 +4,8 @@ build:
 
 .PHONY: run
 run:
-	build/run --proxy-port 2121
+	docker-compose up -d
+	build/run --proxy-port 2121 --redis-address localhost:6379 --postgres-address localhost --postgres-port 15432 --postgres-username postgres --postgres-password pass --postgres-dbname postgres
 
 
 .PHONY: vendor

@@ -2,36 +2,35 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/seed95/forward-proxy/internal"
 	"github.com/seed95/forward-proxy/internal/repo"
 	"time"
 )
 
 type redisRepo struct {
-	rdb        *redis.Client
-	expiration time.Duration
+	rdb               *redis.Client
+	defaultExpiration time.Duration
 }
 
 var _ repo.CacheRepo = (*redisRepo)(nil)
 
-func New(config *internal.RedisConfig) repo.CacheRepo {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     config.Address,
-		Username: "", // TODO check load from config
-		Password: config.Password,
-		DB:       0, // TODO check load from config
-	})
+func New(rdb *redis.Client, expiration time.Duration) repo.CacheRepo {
 	return &redisRepo{
-		rdb:        rdb,
-		expiration: config.ExpirationTime,
+		rdb:               rdb,
+		defaultExpiration: expiration,
 	}
 }
 
-func (r *redisRepo) CacheResponse(ctx context.Context, url string, res interface{}) (err error) {
-	return r.rdb.Set(ctx, url, res, r.expiration).Err()
+func (r *redisRepo) CacheResponse(ctx context.Context, url string, body []byte) (err error) {
+	return r.rdb.Set(ctx, url, string(body), r.defaultExpiration).Err()
 }
 
-func (r *redisRepo) GetCachedRequest(ctx context.Context, url string) (res interface{}, err error) {
-	return r.rdb.Get(ctx, url).Result()
+func (r *redisRepo) GetCachedRequest(ctx context.Context, url string) (body []byte) {
+	result, err := r.rdb.Get(ctx, url).Result()
+	if err == redis.Nil {
+		return nil
+	}
+	fmt.Println("redis", result)
+	return []byte(result)
 }

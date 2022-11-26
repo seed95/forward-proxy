@@ -6,12 +6,12 @@ import (
 )
 
 type CacheRepo interface {
-	// CacheResponse cache response received from target url
-	CacheResponse(ctx context.Context, url string, res interface{}) (err error)
+	// CacheResponse cache received response body from target url
+	CacheResponse(ctx context.Context, url string, body []byte) (err error)
 
-	// GetCachedRequest returns cached response for target url
-	// If exist cache return response otherwise return error
-	GetCachedRequest(ctx context.Context, url string) (res interface{}, err error)
+	// GetCachedRequest returns cached response body for target url
+	// If exist cache return body otherwise return nil
+	GetCachedRequest(ctx context.Context, url string) (body []byte)
 }
 
 type StatsRepo interface {

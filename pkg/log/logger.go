@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
 	"github.com/seed95/forward-proxy/pkg/log/zap"
+	"go.uber.org/zap/zapcore"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -54,14 +55,6 @@ const (
 
 func init() {
 	initPackageName()
-
-	// Create default std logger
-	stdCore, err := zap.NewStandardCore(true, zap.ErrorLevel)
-	if err != nil {
-		fmt.Println(fmt.Errorf("failed to create std log instance, error: %v", err))
-		return
-	}
-	log.Logger = zap.NewZapLoggerWithCores(stdCore)
 }
 
 // initPackageName Get the package name for log and root project file name,
@@ -88,10 +81,19 @@ func initPackageName() {
 	minimumCallerDepth = i + 2 // +1 for ReqRes method in this package
 }
 
-//// SetLogger assign new kitlogger.Logger to used for global log instance
-//func SetLogger(logger Logger) {
-//	log = logger
-//}
+func Init(level int) {
+	var cores []zapcore.Core
+
+	// STD log
+	stdCore, err := zap.NewStandardCore(true, zap.Level(level))
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to create std log instance, error: %v", err))
+		return
+	}
+	cores = append(cores, stdCore)
+
+	log.Logger = zap.NewZapLoggerWithCores(cores...)
+}
 
 func ReqRes(startTime time.Time, err error, keyVal ...keyval.Pair) {
 	log.ReqRes(startTime, err, keyVal...)
@@ -111,9 +113,9 @@ func (l *logger) ReqRes(startTime time.Time, err error, keyVal ...keyval.Pair) {
 
 	if err != nil {
 		keyVal = append(keyVal, keyval.Error(err))
-		go l.Error(message, keyVal...)
+		Error(message, keyVal...)
 	} else {
-		go l.Info(message, keyVal...)
+		Info(message, keyVal...)
 	}
 }
 
