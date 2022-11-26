@@ -2,36 +2,39 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	"net/http"
+	"regexp"
+	"time"
+
 	"github.com/seed95/forward-proxy/api"
 	"github.com/seed95/forward-proxy/internal/service"
 	"github.com/seed95/forward-proxy/pkg/log"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
-	"net/http"
-	"regexp"
-	"time"
+
+	"golang.org/x/time/rate"
 )
 
 type httpHandler struct {
-	mux *http.ServeMux
-	srv service.Service
+	mux     *http.ServeMux
+	srv     service.Service
+	limiter *rate.Limiter
 }
 
-func NewHttpHandler(srv service.Service) *httpHandler {
+func NewHttpHandler(srv service.Service, limiter *rate.Limiter) *httpHandler {
 	handler := &httpHandler{
-		mux: http.NewServeMux(),
-		srv: srv,
+		mux:     http.NewServeMux(),
+		srv:     srv,
+		limiter: limiter,
 	}
 	return handler
 }
 
 func (h *httpHandler) Route() http.Handler {
-	h.mux.HandleFunc("/", h.serve)
+	h.mux.HandleFunc("/", logMiddleware(h.serve))
 	return h.mux
 }
 
 func (h *httpHandler) serve(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL.RequestURI())
 	// Regex for stats route
 	reg := regexp.MustCompile(`/stats\?time=\d`)
 	switch {
@@ -49,7 +52,11 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Type", "application/text")
 
-	//if strings.Contains(r.URL.String(),"/stats?time=")
+	// Checking that the client does not send too many requests
+	if !h.limiter.Allow() {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
 
 	//fmt.Println("req url:", r.URL)
 	//fmt.Println("req url schema:", r.URL.Scheme)
@@ -64,6 +71,7 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("req form:", r.Form)
 	//fmt.Println("req", r)
 
+	// Make service request
 	forwardReq := api.ForwardRequest{
 		ReceivedAt: time.Now(),
 		//Target:     r.URL.String(),
@@ -73,11 +81,14 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 		Header:    r.Header,
 	}
 
+	// Call service
 	res, err := h.srv.ForwardRequest(r.Context(), &forwardReq)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	// Write response
 	if _, err = w.Write(res.Body); err != nil {
 		log.Error("write response", keyval.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -87,12 +98,16 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *httpHandler) getStat(w http.ResponseWriter, r *http.Request) {
+	// Make service request
 	statsReq := api.StatsRequest{From: r.URL.Query().Get("time")}
 
+	// Call service
 	res, err := h.srv.GetStats(r.Context(), &statsReq)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	// Write response
 	_ = json.NewEncoder(w).Encode(res)
 }

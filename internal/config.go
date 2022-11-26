@@ -5,8 +5,10 @@ import (
 )
 
 const (
-	DefaultStdLogLevel     = -1
-	DefaultRedisExpiration = 5 * time.Minute
+	DefaultStdLogLevel      = -1
+	DefaultRedisExpiration  = 5 * time.Minute
+	DefaultLimiterTps       = 10
+	DefaultLimiterBurstSize = 10
 )
 
 type RedisConfig struct {

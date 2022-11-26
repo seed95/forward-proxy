@@ -2,6 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	nativeLog "log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/seed95/forward-proxy/internal"
 	"github.com/seed95/forward-proxy/internal/handler"
 	"github.com/seed95/forward-proxy/internal/helper"
@@ -10,13 +16,9 @@ import (
 	"github.com/seed95/forward-proxy/internal/service"
 	"github.com/seed95/forward-proxy/pkg/log"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
-	nativeLog "log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -31,6 +33,7 @@ var (
 
 func init() {
 	conf.ExpirationTime = internal.DefaultRedisExpiration
+
 	log.Init(internal.DefaultStdLogLevel)
 
 	rootCmd.Flags().StringVar(&conf.ProxyPort, "proxy-port", "", "Proxy port is used to received request from this port")
@@ -80,8 +83,11 @@ func run(cmd *cobra.Command, args []string) {
 	// Setup service
 	srv := service.New(cacheRepo, statsRepo)
 
+	// Setup http limiter
+	limiter := rate.NewLimiter(rate.Limit(internal.DefaultLimiterTps), internal.DefaultLimiterBurstSize)
+
 	// Setup HTTP server
-	httpHandler := handler.NewHttpHandler(srv)
+	httpHandler := handler.NewHttpHandler(srv, limiter)
 	nativeLog.Printf(fmt.Sprintf("[INFO] Running HTTP server on port %s", conf.ProxyPort))
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", conf.ProxyPort), httpHandler.Route()); err != nil {
 		log.Panic(fmt.Sprintf("[ERROR] Failed to bind HTTP server on port %s", conf.ProxyPort), keyval.Error(err))
