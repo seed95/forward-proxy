@@ -1,13 +1,13 @@
 package internal
 
 import (
-	"github.com/spf13/viper"
 	"time"
 )
 
-type ServerConfig struct {
-	StlLogLevel int // Standard core log level
-}
+const (
+	DefaultStdLogLevel     = 1
+	DefaultRedisExpiration = 5 * time.Minute
+)
 
 type RedisConfig struct {
 	Address        string
@@ -15,13 +15,17 @@ type RedisConfig struct {
 	ExpirationTime time.Duration
 }
 
-func NewServerConfig(prefix string) *ServerConfig {
-	// Viper Configuration
-	v := viper.New()
-	v.SetEnvPrefix(prefix)
-	v.AutomaticEnv()
+type PostgresConfig struct {
+	Address      string
+	Port         string
+	Username     string
+	Password     string
+	DatabaseName string
+}
 
-	return &ServerConfig{
-		StlLogLevel: v.GetInt("std_level"),
-	}
+type Config struct {
+	StdLogLevel int    // Standard core log level
+	ProxyPort   string // Proxy port is used to receive requests from this port to forward.
+	RedisConfig
+	PostgresConfig
 }

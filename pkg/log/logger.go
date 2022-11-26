@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"github.com/seed95/forward-proxy/pkg/log/keyval"
 	"github.com/seed95/forward-proxy/pkg/log/zap"
 	"path/filepath"
@@ -25,7 +26,7 @@ var _ Logger = (*logger)(nil)
 
 var (
 	// log is a logger instance to log globally in project
-	log *logger
+	log logger
 
 	// logPackageName is used to cache package name for logger.
 	// Cached at first use (initPackageName).
@@ -54,13 +55,13 @@ const (
 func init() {
 	initPackageName()
 
-	//// Create default std logger
-	//stdCore, err := zap.NewStandardCore(true, zap.ErrorLevel)
-	//if err != nil {
-	//	fmt.Println(fmt.Errorf("failed to create std log instance, error: %v", err))
-	//	return
-	//}
-	//log.Logger = zap.NewZapLoggerWithCores(stdCore)
+	// Create default std logger
+	stdCore, err := zap.NewStandardCore(true, zap.ErrorLevel)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to create std log instance, error: %v", err))
+		return
+	}
+	log.Logger = zap.NewZapLoggerWithCores(stdCore)
 }
 
 // initPackageName Get the package name for log and root project file name,

@@ -3,13 +3,15 @@ package api
 import (
 	"io"
 	"net/http"
+	"time"
 )
 
 type ForwardRequest struct {
-	Target string
-	Method string
-	Body   io.Reader
-	Header http.Header
+	ReceivedAt time.Time
+	Target     string // Target url
+	Method     string
+	Body       io.Reader
+	Header     http.Header
 }
 
 type ForwardResponse struct {

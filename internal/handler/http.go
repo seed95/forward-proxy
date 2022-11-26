@@ -5,7 +5,7 @@ import (
 	"github.com/seed95/forward-proxy/api"
 	"github.com/seed95/forward-proxy/internal/service"
 	"net/http"
-	"strconv"
+	"time"
 )
 
 type httpHandler struct {
@@ -35,7 +35,13 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("req url:", r.URL)
 	fmt.Println("req raw url:", r.URL.RawPath)
 
-	forwardReq := api.ForwardRequest{Target: r.URL.String()}
+	forwardReq := api.ForwardRequest{
+		ReceivedAt: time.Now(),
+		Target:     r.URL.String(),
+		Method:     r.Method,
+		Body:       r.Body,
+		Header:     r.Header,
+	}
 
 	res, err := h.srv.ForwardRequest(r.Context(), &forwardReq)
 	if err != nil {
@@ -46,12 +52,11 @@ func (h *httpHandler) forward(w http.ResponseWriter, r *http.Request) {
 
 func (h *httpHandler) getStat(w http.ResponseWriter, r *http.Request) {
 	strTime := r.URL.Query().Get("time")
-	time, err := strconv.Atoi(strTime)
+	from, err := time.ParseDuration(strTime + "m")
 	if err != nil {
 		//TODO handle error
 	}
-
-	statsReq := api.StatsRequest{Time: time}
+	statsReq := api.StatsRequest{From: from}
 
 	res := h.srv.GetStats(r.Context(), &statsReq)
 	_ = res

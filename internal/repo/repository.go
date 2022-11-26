@@ -1,6 +1,9 @@
 package repo
 
-import "context"
+import (
+	"context"
+	"github.com/seed95/forward-proxy/internal/model"
+)
 
 type CacheRepo interface {
 	// CacheResponse cache response received from target url
@@ -11,5 +14,10 @@ type CacheRepo interface {
 	GetCachedRequest(ctx context.Context, url string) (res interface{}, err error)
 }
 
-type StatRepo interface {
+type StatsRepo interface {
+	// SaveStat save model.Statistical information for received request
+	SaveStat(ctx context.Context, stat model.Statistical) (err error)
+
+	// GetStats returns statistical information from (millisecond) variable onwards
+	GetStats(ctx context.Context, from int64) (stats []model.Statistical, err error)
 }

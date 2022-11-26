@@ -1,7 +1,9 @@
 package api
 
+import "time"
+
 type StatsRequest struct {
-	Time int // Number of minutes in the past from current time
+	From time.Duration // Number of minutes in the past from current time
 }
 
 type StatsResponse struct {
