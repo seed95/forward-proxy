@@ -42,19 +42,21 @@ func (s *service) ForwardRequest(ctx context.Context, req *api.ForwardRequest) (
 	defer func(startTime time.Time) {
 		commonKeyVal := []keyval.Pair{
 			keyval.String("req", fmt.Sprintf("%+v", req)),
-			keyval.String("res_status_code", fmt.Sprintf("%v", res.StatusCode)),
+		}
+		if res != nil {
+			commonKeyVal = append(commonKeyVal, keyval.String("res_status_code", fmt.Sprintf("%v", res.StatusCode)))
 		}
 		log.ReqRes(startTime, err, commonKeyVal...)
 	}(time.Now())
 
-	//if cacheRes := s.cache.GetCachedRequest(ctx, req.TargetUrl); cacheRes != nil {
-	//	return &api.ForwardResponse{
-	//		StatusCode: http.StatusOK,
-	//		Body:       cacheRes,
-	//	}, nil
-	//}
+	if cacheRes := s.cache.GetCachedRequest(ctx, req.TargetUrl); cacheRes != nil {
+		return &api.ForwardResponse{
+			StatusCode: http.StatusOK,
+			Body:       cacheRes,
+		}, nil
+	}
 
-	proxyReq, err := http.NewRequest(req.Method, req.TargetUrl, req.Body)
+	proxyReq, err := http.NewRequestWithContext(ctx, req.Method, req.TargetUrl, req.Body)
 	if err != nil {
 		return nil, err
 	}

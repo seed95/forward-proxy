@@ -88,8 +88,12 @@ func run(cmd *cobra.Command, args []string) {
 
 	// Setup HTTP server
 	httpHandler := handler.NewHttpHandler(srv, limiter)
+	s := http.Server{
+		Addr:    fmt.Sprintf(":%s", conf.ProxyPort),
+		Handler: handler.RecoverMiddleware(handler.LogMiddleware(httpHandler.Serve)),
+	}
 	nativeLog.Printf(fmt.Sprintf("[INFO] Running HTTP server on port %s", conf.ProxyPort))
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", conf.ProxyPort), httpHandler.Route()); err != nil {
+	if err := s.ListenAndServe(); err != nil {
 		log.Panic(fmt.Sprintf("[ERROR] Failed to bind HTTP server on port %s", conf.ProxyPort), keyval.Error(err))
 	}
 
