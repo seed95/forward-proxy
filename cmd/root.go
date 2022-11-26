@@ -58,10 +58,6 @@ func Execute() error {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	fmt.Println("proxy port", conf.ProxyPort)
-	fmt.Println("redis config", conf.RedisConfig)
-	fmt.Println("postgres config", conf.PostgresConfig)
-
 	// Setup redis database
 	rdb, err := helper.NewRedisDatabase(conf.RedisConfig)
 	if err != nil {
