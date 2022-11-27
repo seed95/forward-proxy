@@ -1,4 +1,3 @@
-const prompt = require("prompt-sync")({ sigint: true })
 const proxy = require("./proxy")
 const yargs = require('yargs/yargs')
 const { hideBin } = require('yargs/helpers')
