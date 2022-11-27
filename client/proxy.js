@@ -22,6 +22,7 @@ async function callRandomly(proxyURL, targetURLs)
             const URL = "http://" + proxyURL + "/" + targetURL
             var start = new Date();
             const res = await httpGet(URL);
+            console.log("---------")
             console.log("called url:", targetURL)
             console.log("status:", res[0])
             console.log("length:", res[1])

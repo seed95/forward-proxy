@@ -11,4 +11,5 @@ run-server:
 
 .PHONY: run-client
 run-client:
-	node client/main.js
+	node client/main.js --proxy-url localhost:2121 --parallel 1 \
+	--target "https://www.google.com" --target "https://www.uniqcast.com/"
