@@ -81,11 +81,11 @@ func initPackageName() {
 	minimumCallerDepth = i + 2 // +1 for ReqRes method in this package
 }
 
-func Init(level int) {
+func Init(level zap.Level) {
 	var cores []zapcore.Core
 
 	// STD log
-	stdCore, err := zap.NewStandardCore(true, zap.Level(level))
+	stdCore, err := zap.NewStandardCore(true, level)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to create std log instance, error: %v", err))
 		return

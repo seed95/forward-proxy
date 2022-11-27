@@ -1,11 +1,12 @@
 package internal
 
 import (
+	"github.com/seed95/forward-proxy/pkg/log/zap"
 	"time"
 )
 
 const (
-	DefaultStdLogLevel      = -1
+	DefaultStdLogLevel      = zap.InfoLevel
 	DefaultRedisExpiration  = 5 * time.Minute
 	DefaultLimiterTps       = 10
 	DefaultLimiterBurstSize = 10

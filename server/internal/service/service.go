@@ -46,6 +46,7 @@ func (s *service) ForwardRequest(ctx context.Context, req *api.ForwardRequest) (
 		}
 		if res != nil {
 			commonKeyVal = append(commonKeyVal, keyval.String("res_status_code", fmt.Sprintf("%v", res.StatusCode)))
+			commonKeyVal = append(commonKeyVal, keyval.String("res_length", fmt.Sprintf("%v", len(res.Body))))
 		}
 		log.ReqRes(startTime, err, commonKeyVal...)
 	}(time.Now())

@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/seed95/forward-proxy/internal/repo"
 	"time"
@@ -31,6 +30,5 @@ func (r *redisRepo) GetCachedRequest(ctx context.Context, url string) (body []by
 	if err == redis.Nil {
 		return nil
 	}
-	fmt.Println("redis", result)
 	return []byte(result)
 }
